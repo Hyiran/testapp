@@ -1,0 +1,151 @@
+package com.ctc.mail.resourceconsumption;
+
+import io.appium.java_client.android.AndroidDriver;
+
+import java.io.File;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+import com.ctc.mail.common.CommonUtil;
+import com.ctc.mail.common.User;
+import com.ctc.mail.receivemail.Re139;
+import com.ctc.mail.successratio.Components139;
+
+public class NetworkFlow139 {
+	static String dateFormat = "hh:mm:ss.SSS";
+	static SimpleDateFormat date = new SimpleDateFormat(dateFormat);
+	// 工程根目录
+	static String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/");
+	String apkDir = projectRootPath + "apk/"; // 安装包的位置
+	String apkName = "139.apk"; // 安装包名
+	String appPackage = "cn.cj.pe"; // 程序的package
+	String appPackage360 = "com.qihoo360.mobilesafe"; // 程序的package
+	String appActivity = "com.mail139.about.LaunchActivity"; // 程序的Activity
+	String appActivity360 = "com.qihoo360.mobilesafe.ui.index.AppEnterActivity"; // 360程序的Activity
+	static String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	static String fileName = "mail139.xls"; // 记录文档的文件名
+	String screenshotName = "mail139_test139app"; // 截图的名字前缀
+	public AndroidDriver driver;
+
+	String editTextField = "1234567890";
+	int width;
+	int height;
+	
+
+	@Before
+	public void setUp() throws Exception {
+		//清除缓存
+		CommonUtil.adbClearCache(appPackage);
+		DesiredCapabilities capabilities = new DesiredCapabilities();
+		capabilities.setCapability("platformName", "Android");// 你要测试的手机操作系统
+		capabilities.setCapability("deviceName", "Android");// 使用的手机类型或模拟器类型，真机时输入Android
+															// Emulator或者手机型号
+		capabilities.setCapability("platformVersion", "4.4.4");// 手机操作系统版本，可不更改
+		capabilities.setCapability("appPackage", appPackage);// 你想运行的Android应用的包名
+		capabilities.setCapability("appActivity", appActivity);// 你要启动的Android
+		capabilities.setCapability("newCommandTimeout", "3610");//设置超时时间
+		capabilities.setCapability("unicodeKeyboard", true);
+		capabilities.setCapability("resetKeyboard", true);
+		driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), capabilities);// 若测试多台手机需为开启多个appium，且修改4725（一台对应一个）
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		driver.quit();
+	}
+	//首次登陆流量消耗
+	@Test
+	public void testLoginFlow() throws Exception {
+		try {
+			
+			
+			
+			Components139 components = new Components139();
+			User user = new User("18588872082","Deng5375585");
+			components.testFirstLoginNoCache(driver, "CMCC",fileDir+fileName,"FlowLoginCMCC", user);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	//空刷流量消耗
+	@Test
+	public void testBrushFlow() throws Exception {
+		try {
+			String strflowtotal="";
+			long waittime = 300000;
+			Components139 components = new Components139();
+			User user = new User("18718879146","18879146");
+			components.testLoadMail(driver, "CMCC", user);	
+			//清空流量
+			components.clearFlow(driver);
+			
+			//等待5分钟
+			CommonUtil.sleep(waittime);
+			for(int i=0;i<1;i++)
+			{		  
+			  strflowtotal=components.testBrushMail(driver,appPackage,appActivity);
+			  String currentTime = CommonUtil.currentTime();
+			  System.out.print("当前时间："+currentTime+" 消耗流量"+strflowtotal);
+			  CommonUtil.inputToExcel(0, currentTime,"消耗流量", strflowtotal, " ", 0,fileDir+fileName,"FlowBrushCMCC");
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	
+	@Test
+	public void testNoReceiveStandbyFlow() throws Exception {
+		try {
+			String strflowtotal="";
+			Components139 components = new Components139();
+			User user = new User("18718879146","18879146");
+			components.testLoadMail(driver, "CMCC", user);
+			for(int i=0;i<1;i++)
+			{
+			  strflowtotal= components.testStandby(driver,"139邮箱");
+			
+			  String currentTime = CommonUtil.currentTime();
+			  System.out.print("当前时间："+currentTime+" 无邮件接收流量消耗"+strflowtotal);
+			  CommonUtil.inputToExcel(0, currentTime,"无邮件接收流量消耗", strflowtotal, " ", 0,fileDir+fileName,"FlowNoReceiveStandbyCMCC");
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	
+	//待机下邮箱接收流量消耗
+	@Test
+	public void testHasReceiveStandbyFlow() throws Exception {
+		try {
+			String strflowtotal="";
+			Components139 components = new Components139();
+			User user = new User("18718879146","18879146");
+			components.testLoadMail(driver, "CMCC", user);
+			for(int i=0;i< 1;i++)
+			{				
+			  strflowtotal= components.testThreeMailStandby(driver,"139邮箱");			
+			  String currentTime = CommonUtil.currentTime();
+			  System.out.print("当前时间："+currentTime+" 接收流量消耗"+strflowtotal);
+			  CommonUtil.inputToExcel(i, currentTime,"接收流量消耗", strflowtotal, " ", 0,fileDir+fileName,"FlowHasReceiveStandbyCMCC");
+			  components.testDeleteMail(driver,appPackage,appActivity);
+			}
+			
+			
+		} catch (Exception e) {
+			CommonUtil.screenShot(driver, fileDir, "FlowHasReceiveStandbyCMCC",1);
+			e.printStackTrace();
+		}
+	}
+
+}

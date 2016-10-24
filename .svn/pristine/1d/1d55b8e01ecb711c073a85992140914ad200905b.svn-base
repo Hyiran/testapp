@@ -1,0 +1,150 @@
+package com.ctc.mail.receivemail;
+
+import java.io.File;
+import java.io.IOException;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import pers.vinken.appiumUtil.ioManager;
+
+public class Re189 {
+	private final String userName = "13592713535"; // 189用户名
+	private final String userPwd = "263508896"; // 邮箱密码
+	static String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/");
+	static String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	static String fileName = "mail189.xls"; // 记录文档的文件名
+	
+	private final String title = "test"; // 邮件主题
+	private static int runTimes = 20; // 循环次数
+	private final int waitTimeMillis = 20; // 输入命令超时时间s
+	static final String logDir = projectRootPath + "log/"; // 记录文件的位置
+	static final String logName = "receiveEmail.xls"; // 记录文件的名字
+
+	static long startime = 0;
+    static int r = runTimes + 1;
+
+	public static void main(String[] args) throws Exception {
+		Re189 t = new Re189();
+		while (runTimes > 0) {
+			WebDriver driver = new ChromeDriver();
+			driver.manage().window().maximize();
+			t.login(driver);
+			t.writeMail(driver);
+			Thread.sleep(5000);
+			driver.close();
+			runTimes--;
+		}
+	}
+
+	/**
+	 * 登陆页打开时长 登录时长
+	 * 
+	 * @param driver
+	 */
+	void login(WebDriver driver) {
+		driver.get("http://mail.189.cn/");
+		WebDriverWait wait = new WebDriverWait(driver, waitTimeMillis);
+		WebElement iframeLogin = wait
+				.until(new ExpectedCondition<WebElement>() {
+					public WebElement apply(WebDriver d) {
+						return d.findElement(By.xpath("//*[@id='iframeLogin']"));
+					}
+				});
+		// 切换到登录iframe
+		driver.switchTo().frame(iframeLogin);
+		WebElement userField = wait.until(new ExpectedCondition<WebElement>() {
+			public WebElement apply(WebDriver d) {
+				return d.findElement(By.xpath("//*[@name='userName']"));
+			}
+		});
+
+		userField.clear();
+		userField.sendKeys(userName);
+
+		WebElement pwdField = wait.until(new ExpectedCondition<WebElement>() {
+			public WebElement apply(WebDriver d) {
+				return d.findElement(By.xpath("//*[@id='password']"));
+			}
+		});
+		while (!pwdField.isDisplayed()) {
+		}
+		pwdField.clear();
+		pwdField.sendKeys(userPwd);
+
+		// 登陆时间
+		WebElement eLogin = driver.findElement(By.xpath("//*[@id='b-logon']"));
+		eLogin.click();
+
+		wait.until(new ExpectedCondition<WebElement>() {
+			public WebElement apply(WebDriver d) {
+				return d.findElement(By.xpath("//*[@id='search-input']"));
+			}
+		});
+	}
+
+	void writeMail(WebDriver driver) {
+
+		WebDriverWait wait = new WebDriverWait(driver, waitTimeMillis);
+		// 写邮件按钮
+		WebElement writeBtn = wait.until(new ExpectedCondition<WebElement>() {
+			public WebElement apply(WebDriver d) {
+				return d.findElement(By
+						.xpath("//*[@id='j_mf_pannel_mail']/div[2]/div/div[1]/div/a"));// *[@id="divSplitter"]
+			}
+		});
+		writeBtn.click();
+
+		WebElement iframe = wait.until(new ExpectedCondition<WebElement>() {
+			public WebElement apply(WebDriver d) {
+				return d.findElement(By.xpath("//*[@id='xhe0_iframe']"));
+			}
+		});
+		while (!iframe.isDisplayed()) {
+		}
+		// 上传时长
+		driver.findElement(By.xpath("//*[@id='J_wm_to_scrollbar']/div/input")).sendKeys("13631354095@189.cn");
+		driver.findElement(By.xpath("//*[@id='J_wm_subject']")).clear();
+		driver.findElement(By.xpath("//*[@id='J_wm_subject']")).sendKeys(title);
+		// 填写邮件正文
+		driver.switchTo().frame(driver.findElement(By.id("xhe0_iframe")));
+
+		Actions actions = new Actions(driver);
+		actions.perform();
+		driver.switchTo().parentFrame();
+		driver.findElement(By.xpath("//*[@id='J_wm_post_mail']")).click();
+		WebElement secuess = wait.until(new ExpectedCondition<WebElement>() {
+			public WebElement apply(WebDriver d) {
+				return d.findElement(By.xpath("//div[@class='secuess']"));
+			}
+		});
+		while (!secuess.isDisplayed()) {
+		}
+		startime = System.currentTimeMillis();
+		System.out.println(startime);
+		inputToExcel(r);
+		sleep(3000);
+	}
+	// 用于设置等待时间，不用修改
+		public static void sleep(long millis) {
+			try {
+				Thread.sleep(millis);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	// 输入文字到excel表格，不用修改
+	public  static  void inputToExcel(int caseNo) {
+		try {
+			ioManager.writeToExcelFile(fileDir + fileName, "testRe163",
+					caseNo + "\t" + "\t" +  startime + "\n");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}

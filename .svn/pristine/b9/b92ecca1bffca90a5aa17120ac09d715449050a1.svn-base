@@ -1,0 +1,6 @@
+driver=com.mysql.jdbc.Driver
+url=jdbc:mysql://192.168.0.109:3306/139mailapp
+userName=root
+password=root12345
+useSSL=true
+verifyServerCertificate=false

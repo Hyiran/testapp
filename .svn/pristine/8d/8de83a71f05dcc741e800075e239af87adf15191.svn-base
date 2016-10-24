@@ -1,0 +1,95 @@
+package com.ctc.mail.receivemail;
+
+import java.io.File;
+import java.io.IOException;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+import pers.vinken.appiumUtil.elementManager;
+import pers.vinken.appiumUtil.ioManager;
+
+import com.ctc.mail.common.CommonUtil;
+
+public class Re163 {
+	static String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/");
+	static String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	static String fileName = "mail163.xls"; // 记录文档的文件名
+	
+	static String userName = "maomingtest5";/// 163用户名
+	static String userPwd = "as123456";// 邮箱密码
+	static String title = "test.163"; // 邮件主题
+	
+	static long start = 0;
+
+	public static void main(String[] args) throws InterruptedException {
+		WebDriver driver = new ChromeDriver();
+		driver.manage().window().maximize();// Chrome浏览器窗口最大化
+		testrecevice(driver);
+		driver.close();
+	}
+
+	/**
+	 * 预备工作：<br>
+	 * 1.安装状态栏文字捕抓辅助工具<br>
+	 * 2.设置好辅助工具所捕抓的邮件主题<br>
+	 * 3.设置后让辅助工具和移动客户端后台运行<br>
+	 */
+
+	public static void testrecevice(WebDriver driver) {
+		driver.get("http://mail.163.com/");
+		driver.switchTo().frame(driver.findElement(By.xpath("//iframe[@id='x-URS-iframe']")));
+		elementManager.waitForElement(driver, By.xpath("//input[@class='j-inputtext dlemail']"), 10);
+		WebElement idinput = driver.findElement(By.xpath("//input[@class='j-inputtext dlemail']"));
+		idinput.sendKeys(userName);
+		WebElement txtpass = driver.findElement(By.xpath("//input[@class='j-inputtext dlpwd']"));
+		txtpass.clear();// 清空密码框
+		txtpass.sendKeys(userPwd);// 输入密码
+		elementManager.waitForElement(driver, By.id("dologin"), 20);
+		WebElement loginBtn = driver.findElement(By.id("dologin"));
+		loginBtn.click();// 点击登录按钮
+		driver.switchTo().parentFrame();
+		elementManager.waitForElement(driver, By.xpath("//li[@class='js-component-component ra0 mD0']"), 30);
+		System.out.println("开始测试：");
+		for (int i = 1; i <= 15; i++) {
+			elementManager.waitForElement(driver, By.xpath("//li[@class='js-component-component ra0 mD0']"), 20);
+			WebElement write = driver.findElement(By.xpath("//li[@class='js-component-component ra0 mD0']"));
+			write.click();
+			elementManager.waitForElement(driver, By.xpath("//section[@class='tH0']"), 20);
+			// 输入主题
+			WebElement txttitle = elementManager.waitForElement(driver,By.xpath("//input[@class='nui-ipt-input' and @maxlength='256']"), 5);
+			txttitle.sendKeys(title+"+"+i);
+			// 输入收件人
+			WebElement txtname = elementManager.waitForElement(driver,By.xpath("//input[@class='nui-editableAddr-ipt']"), 5);
+			txtname.sendKeys("maomingtest5@163.com");
+			CommonUtil.waitForElement(driver,By.xpath("//div[@role='button' and @tabindex='2' and @class='js-component-button nui-mainBtn nui-btn nui-btn-hasIcon nui-mainBtn-hasIcon  ']"),10).click();
+			CommonUtil.waitForElement(driver, By.xpath(".//b[@class='nui-ico se0 pv1']"), 100);// 等待发送成功
+			start = System.currentTimeMillis();
+			System.out.println(start);
+			driver.findElement(By.xpath("//*[@title='点击关闭标签']")).click();
+			inputToExcel(i);
+			sleep(6000);
+		}
+
+	}
+
+	// 用于设置等待时间，不用修改
+	public static void sleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+	// 输入文字到excel表格，不用修改
+	public  static  void inputToExcel(int caseNo) {
+		try {
+			ioManager.writeToExcelFile(fileDir + fileName, "testRe163",
+					caseNo + "\t" + "\t" +  start + "\n");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}

@@ -1,0 +1,112 @@
+package com.ctc.mail.receivemail;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.openqa.selenium.By;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+import io.appium.java_client.TouchAction;
+import io.appium.java_client.android.AndroidDriver;
+import pers.vinken.appiumUtil.elementManager;
+import pers.vinken.appiumUtil.formatUtil;
+import pers.vinken.appiumUtil.ioManager;
+
+public class testRe189 {
+
+	static AndroidDriver driver; // Android设备
+	static String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/"); // 工程根目录
+	static String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	static String fileName = "mail189.xls"; // 记录文档的文件名
+	static String screenshotName = "mail189_nocachelogin"; // 截图的名字前缀
+	static String appPackage = "com.corp21cn.mail189"; // 程序的package
+	static String appActivity = "com.corp21cn.mailapp.activity.ClientIntroducePage"; // 程序的Activity
+
+	long endtime = 0;
+
+	@Before
+	public void setUp() throws Exception {
+		DesiredCapabilities capabilities = new DesiredCapabilities();
+		capabilities.setCapability("platformName", "Android");
+		capabilities.setCapability("deviceName", "Android");
+		capabilities.setCapability("platformVersion", "5.0");
+		capabilities.setCapability("appPackage", appPackage);
+		capabilities.setCapability("appActivity", appActivity);
+
+		driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), capabilities);
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		driver.quit();
+	}
+
+	@Test
+	public void test() throws Exception {
+		start(driver);
+	}
+
+	public void start(AndroidDriver driver) throws Exception {
+		int width = driver.manage().window().getSize().width;
+		int height = driver.manage().window().getSize().height;
+		driver.resetApp();
+		// 登录邮箱
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/mailsetselect_item_tv"), 30);
+		driver.findElement(By.id("com.corp21cn.mail189:id/mailsetselect_item_tv")).click();
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/switch_account"), 25).click();
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/mail_setuser"), 2).sendKeys("13631354095");
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/mail_setpwd"), 2).sendKeys("as123456");
+		driver.findElement(By.id("com.corp21cn.mail189:id/mail_setok")).click();
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/nav_home"), 30);
+		// 打开未读邮件
+		Thread.sleep(5000);
+		System.out.println("开始测试：");
+		for (int i = 1; i <= 20; i++) {
+			while (!elementManager.doesElementDisplay(driver, By.id("com.corp21cn.mail189:id/mail_read_flag"))) {
+				driver.swipe(width / 2, height / 2, width / 2, height - 100, 500);
+			}
+			endtime = System.currentTimeMillis();
+			System.out.println(endtime);
+			inputToExcel(i);
+			TouchAction action = new TouchAction(driver);
+			WebElement element = driver.findElement(By.id("com.corp21cn.mail189:id/subject"));
+			action.longPress(element).perform();
+			driver.findElement(By.id("com.corp21cn.mail189:id/main_bottom_delete_view")).click();
+			sleep(1000);
+		}
+	}
+	// 输入文字到excel表格，不用修改
+	public void inputToExcel(int caseNo) {
+		try {
+			ioManager.writeToExcelFile(fileDir + fileName, "testRe189", caseNo + "\t" + endtime + "\n");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	// 用于设置等待时间，不用修改
+	public void sleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	// 屏幕截图
+	public static void screenShot(AndroidDriver driver, int i) {
+		try {
+			File screenshot = driver.getScreenshotAs(OutputType.FILE); // 截取当前图片
+			FileUtils.copyFile(screenshot, new File(
+					fileDir + screenshotName + " - No." + i + formatUtil.getSystemTime(" - MM.dd-HH.mm.ss") + ".png"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+}

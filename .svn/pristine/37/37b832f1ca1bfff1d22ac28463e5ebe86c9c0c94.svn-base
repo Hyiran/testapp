@@ -1,0 +1,301 @@
+package com.ctc.mail.dao;
+
+import java.sql.CallableStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.junit.Test;//必须引入的
+
+public class TestSqlHelper {
+	
+	public  SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    /**
+     * 测试SqlHelper
+     * 每一个测试的方法前都要加@Test
+     * 一条SQL语句insert/update/delete
+     */
+    @Test
+    public void testSqlHelper1() {
+    	
+    	 String[] parameters = { "139","4G",f.format(new Date()),"无邮件流量消耗","23","1"};
+    	 TestSqlHelper.sqlInsertStandby(parameters);
+      	
+    }
+    
+    /**
+	 * 将速度写入数据库
+	 */
+    public static void testInsertSpeed(String[] parameters) {
+        String sql = "insert into `tb_app_net_201609` (productName,networkType,nowTime,down,up,groupId) "
+        		+ "values(?,?,?,?,?,?);";
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+    
+    /**
+     * 时延数据
+     * @param parameters
+     * String[] parameters = { "139", "4G", "2016-09-12 10:27:40", "3.00", "3.00", "3.00", "3.00", "3.00", "3"};
+     */
+	public static void sqlInsertDelay(String[] parameters) {
+		String sql = "INSERT INTO `tb_app_data_201609` (productName,networkType,nowTime,logintime,receivetime,"
+				+ "readtime,sendtime,downtime,groupid)"
+				+ "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		SqlHelper.executeUpdate(sql, parameters);
+	}
+    
+	/**
+	 * 处理APP测试数据
+	 */
+	public static void sqlDataProcessing(){
+		//筛选网速
+		StringBuffer sqlFilterSpeed = new StringBuffer();
+		//筛选数据
+		StringBuffer sqlFilterData = new StringBuffer();
+		//处理数据，小于平均值0.2倍和大于平均数1.5倍的值为空
+		StringBuffer sqlResultData = new StringBuffer();
+		
+		sqlFilterSpeed.append("INSERT INTO `tb_app_net_filter_201609` (productName,networkType,nowTime,down,up,groupid)\r\n");
+		sqlFilterSpeed.append("select B.productName,B.networkType,B.nowTime,B.down,B.up,B.groupid from \r\n");
+				
+		sqlFilterSpeed.append("((select  * from \r\n");
+		sqlFilterSpeed.append("(select groupId,networkType,STDDEV(down) + STDDEV(up) as avgDEV from tb_app_net_201609\r\n");
+		sqlFilterSpeed.append("where networkType =?\r\n");
+		sqlFilterSpeed.append("group by groupId) a \r\n");
+		sqlFilterSpeed.append("order by a.avgDEV asc \r\n");
+		sqlFilterSpeed.append("limit 10)\r\n");
+		
+		sqlFilterSpeed.append("UNION\r\n");
+		
+		sqlFilterSpeed.append("(select  * from \r\n");
+		sqlFilterSpeed.append("(select groupId,networkType,STDDEV(down) + STDDEV(up) as avgDEV from tb_app_net_201609\r\n");
+		sqlFilterSpeed.append("where networkType =?\r\n");
+		sqlFilterSpeed.append("group by groupId) a \r\n");
+		sqlFilterSpeed.append("order by a.avgDEV asc \r\n");
+		sqlFilterSpeed.append("limit 10)) AA\r\n");
+		sqlFilterSpeed.append("left join tb_app_net_201609 B\r\n");
+		sqlFilterSpeed.append("on (AA.groupId = b.groupId and AA.networkType = b.networkType)\r\n");
+		sqlFilterSpeed.append("order by  b.productName,b.networkType,B.groupId\r\n");
+		
+		String[] paramsFilter = { "4G", "CMCC"};
+		
+		sqlFilterData.append("INSERT INTO `tb_app_data_filter_201609` (productName,networkType,nowTime,logintime,receivetime\r\n");
+		sqlFilterData.append(",readtime,sendtime,downtime,groupid)\r\n");
+		sqlFilterData.append("select BB.productName,BB.networkType,BB.nowTime,BB.logintime,BB.receivetime\r\n");
+		sqlFilterData.append(",BB.readtime,BB.sendtime,BB.downtime,BB.groupid from tb_app_net_filter_201609 AA\r\n");
+		sqlFilterData.append("left join tb_app_data_201609 BB\r\n");
+		sqlFilterData.append("on (AA.productName = BB.productName and AA.networkType = BB.networkType and AA.groupId = BB.groupId)\r\n");
+		sqlFilterData.append("order by  BB.productName,BB.networkType,BB.groupId asc\r\n");
+
+		
+		sqlResultData.append("INSERT INTO `tb_app_data_result_201609` (productName,networkType,nowTime,logintime,receivetime\r\n");
+		sqlResultData.append(",readtime,sendtime,downtime,groupid)\r\n");
+		sqlResultData.append("select AA.productName,AA.networkType,AA.nowTime,\r\n");
+		sqlResultData.append("(case when (AA.logintime < BB.logintime*0.2 or AA.logintime > BB.logintime*1.5) then null else AA.logintime end ) logintime,\r\n");
+		sqlResultData.append("(case when (AA.receivetime < BB.receivetime*0.2 or AA.receivetime > BB.receivetime*1.5) then null else AA.receivetime end ) receivetime,\r\n");
+		sqlResultData.append("(case when (AA.readtime < BB.readtime*0.2 or AA.readtime > BB.readtime*1.5) then null else AA.readtime end ) readtime,\r\n");
+		sqlResultData.append("(case when (AA.sendtime < BB.sendtime*0.2 or AA.sendtime > BB.sendtime*1.5) then null else AA.sendtime end ) sendtime,\r\n");
+		sqlResultData.append("(case when (AA.downtime < BB.downtime*0.2 or AA.downtime > BB.downtime*1.5) then null else AA.downtime end )downtime,AA.groupId\r\n");
+		sqlResultData.append("from tb_app_data_filter_201609 AA\r\n");
+		sqlResultData.append("left join \r\n");
+		sqlResultData.append("(select productName,networkType,avg(logintime) logintime,avg(receivetime) receivetime,avg(readtime) readtime,\r\n");
+		sqlResultData.append("avg(sendtime) sendtime,avg(downtime) downtime from tb_app_data_filter_201609\r\n");
+		sqlResultData.append("group by productName,networkType) BB\r\n");
+		sqlResultData.append("on (AA.productName = BB.productName and AA.networkType = BB.networkType)\r\n");
+		sqlResultData.append("order by  AA.productName,AA.networkType,AA.groupId asc\r\n");
+		
+		SqlHelper.executeUpdate(sqlFilterSpeed.toString(), paramsFilter);
+		SqlHelper.executeUpdate(sqlFilterData.toString(), null);
+		SqlHelper.executeUpdate(sqlResultData.toString(), null);
+		
+	}
+	
+	/**
+	 * 成功率
+	 * @param parameters
+	 */
+	public static void sqlInsertRate(String[] parameters){
+		 String sql = "INSERT INTO `tb_app_rate_result_201609` (productName,networkType,nowTime,caseName,time,status,groupid)"
+				+ "VALUES ( ?, ?, ?, ?, ?, ?, ?);";
+		 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 首次加载流量
+	 * @param parameters
+	 */
+	public static void sqlInsertLoadFlow(String[] parameters){
+		 String sql = "INSERT INTO `tb_app_flow_result_201609` (productName,networkType,nowTime,loadflow,groupid)"
+					+ "VALUES ( ?, ?, ?, ?, ?);";
+			 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 更新空刷流量
+	 * @param parameters
+	 */
+	public static void sqlUpdateBrushFlow(String[] parameters){
+		 String sql = "UPDATE `tb_app_flow_result_201609` set brushflow = ? where groupId = ?";
+		 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 待机资源消耗
+	 * @param parameters
+	 */
+	public static void sqlInsertStandby(String[] parameters){
+		String sql = "INSERT INTO `tb_app_standy_result_201609` (productName,networkType,nowTime,caseName,resource,groupid)"
+				+ "VALUES ( ?, ?, ?, ?, ?,?);";
+		 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+    public void testInsertMysql() {
+        String sql = "insert into `tb_web_data_201609` (productName,networkType,case1,"+
+  					"case2,case3,case4,case5,case6,case7,case8,case9,groupId) values(?, ?, ?, ?, ?, ?, "+
+  					"?, ?, ?, ?, ?, ?);";
+        String[] parameters = { "163", "4G", "1", "2","2","2","2","2","2","2","2","1"};
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    /**
+     * 测试一个事务的提交
+     */
+    @Test
+    public void testSqlHelper2() {
+        testUpdateMuti();
+    }
+
+    /**
+     * 测试SQl的Select语句
+     */
+    @Test
+    public void testSqlHelper3() {
+        testQuery();
+    }
+
+    /**
+     * 测试调用无返回值的存储过程
+     */
+    @Test
+    public void testSqlHelper4() {
+        testInsertProc();
+        testUpdateProc();
+        testDeleteProc();
+    }
+
+    /**
+     * 测试调用有返回值的存储过程
+     */
+    @Test
+    public void testSqlHelper5() {
+        testCallProcOutput();
+        testCallProcInput();
+    }
+
+    private void testCallProcInput() {
+        ResultSet rs = null;
+        try {
+            String sql = "{call proc_userinfo_findByUsername(?)}";
+            String[] in = { "Tom" };
+            // Integer[] out ={Types.INTEGER};
+            CallableStatement cs = (CallableStatement) SqlHelper.callProcInput(
+                    sql, in);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                System.out.println("username:" + rs.getString(2)
+                        + "\tpassword:" + rs.getString(3) + "\tsalary:"
+                        + rs.getDouble(5));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            SqlHelper.close(rs, SqlHelper.getCs(), SqlHelper.getConn());
+        }
+    }
+
+    private void testCallProcOutput() {
+        ResultSet rs = null;
+        try {
+            String sql = "{call proc_userinfo_getCount(?)}";
+            Integer[] out = { Types.INTEGER };
+            CallableStatement cs = (CallableStatement) SqlHelper
+                    .callProcOutput(sql, out);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                System.out.println("Record numbers:"+rs.getInt(1));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            SqlHelper.close(rs, SqlHelper.getCs(), SqlHelper.getConn());
+        }
+    }
+
+    private void testDeleteProc() {
+        String sql = "{call proc_userinfo_delete(?)}";
+        String[] parameters = { "Jim" };
+        SqlHelper.callProc(sql, parameters);
+    }
+
+    private void testUpdateProc() {
+        String sql = "{call proc_userinfo_update(?,?,?)}";
+        String[] parameters = { "Lucy", "ncist", "5200.00" };
+        SqlHelper.callProc(sql, parameters);
+    }
+
+    private void testInsertProc() {
+        String sql = "{call proc_userinfo_insert(?,?,?,?)}";
+        String[] parameters = { "wYan", "wyan7", "female", "5600.00" };
+        SqlHelper.callProc(sql, parameters);
+    }
+
+    private void testUpdateMuti() {
+        String sql1 = "UPDATE userinfo SET salary=salary-100 WHERE username = ?";
+        String sql2 = "UPDATE userinfo SET salary=salary+100 WHERE username = ?";
+        String[] sql = { sql1, sql2 };
+        String[] sql1_params = { "Tom" };
+        String[] sql2_params = { "Jim" };
+        String[][] parameters = { sql1_params, sql2_params };
+        SqlHelper.executeUpdateMultiParams(sql, parameters);
+    }
+
+    private void testInsert() {
+        String sql = "INSERT INTO userinfo (username,password,gender,salary) VALUES (?,?,?,?)";
+        String[] parameters = { "wqiang", "wYan", "male", "6000.00" };
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    private void testUpdate() {
+        String sql = "UPDATE userinfo SET password=?,salary=? WHERE username = 'Jim'";
+        String[] parameters = { "xaut", "6500.00" };
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    private void testDelete() {
+        String sql = "DELETE FROM userinfo WHERE username = ?";
+        String[] parameters = { "xiaoqiang" };
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    private void testQuery() {
+        String sql = "SELECT * FROM userinfo";
+        try {
+            ResultSet rs = SqlHelper.executeQuery(sql, null);
+            while (rs.next()) {
+                System.out.println("userName:" + rs.getString("userName")
+                        + "\tpassword:" + rs.getString("password")
+                        + "\tgender:" + rs.getString("gender") + "\tsalary:"
+                        + rs.getDouble("salary"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            SqlHelper.close(SqlHelper.getRs(), SqlHelper.getPs(), SqlHelper
+                    .getConn());
+        }
+    }
+}

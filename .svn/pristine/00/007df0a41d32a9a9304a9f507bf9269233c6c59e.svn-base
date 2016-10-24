@@ -1,0 +1,124 @@
+package com.ctc.mail.successratio;
+
+import io.appium.java_client.android.AndroidDriver;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.List;
+
+import org.apache.commons.io.FileUtils;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.openqa.selenium.By;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+import pers.vinken.appiumUtil.elementManager;
+import pers.vinken.appiumUtil.formatUtil;
+
+import com.ctc.mail.common.CommonUtil;
+
+public class SendSu {
+	static String dateFormat = "mm:ss";
+	static SimpleDateFormat date = new SimpleDateFormat(dateFormat);
+	// 工程根目录
+	static String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/");
+	static String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	static String appPackage = "com.corp21cn.mail189"; // 程序的package
+	static String appActivity = "com.corp21cn.mailapp.activity.ClientIntroducePage"; // 程序的Activity
+	static String fileName = "mail189.xls"; // 记录文档的文件名
+	String screenshotName = "mail189_LoginSu"; // 截图的名字前缀
+
+	public AndroidDriver driver;
+
+	@Before
+	public void setUp() throws Exception {
+		DesiredCapabilities capabilities = new DesiredCapabilities();
+		capabilities.setCapability("platformName", "Android");// 你要测试的手机操作系统
+		capabilities.setCapability("deviceName", "Android");// 使用的手机类型或模拟器类型，真机时输入Android
+		capabilities.setCapability("platformVersion", "6.0");// 手机操作系统版本，可不更改
+		capabilities.setCapability("appPackage", appPackage);// 你想运行的Android应用的包名
+		capabilities.setCapability("appActivity", appActivity);// 你要启动的Android
+		capabilities.setCapability("unicodeKeyboard", true);// 隐藏键盘，以便输入中文
+		capabilities.setCapability("resetKeyboard", true);
+
+		driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), capabilities);// 若测试多台手机需为开启多个appium，且修改4725（一台对应一个）
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		driver.quit();
+	}
+
+	@Test
+	// 在此处进行测试代码编写
+	public void test() throws Exception {
+		login(driver);
+		writemail(driver);
+	}
+	private void login(AndroidDriver driver) {
+		driver.resetApp();
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/mailsetselect_item_tv"), 60).click();
+		if(elementManager.doesElementDisplay(driver, By.id("com.corp21cn.mail189:id/switch_account"))){
+			elementManager.checkandClick(driver, By.id("com.corp21cn.mail189:id/switch_account"));
+		}
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/mail_setuser"), 2).sendKeys("13631354095");
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/mail_setpwd"),2).sendKeys("as123456");
+		WebElement login = driver.findElement(By.id("com.corp21cn.mail189:id/mail_setok"));
+		login.click();
+		elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/navigation_message"), 30);
+	}	
+
+	private void writemail(AndroidDriver driver){
+		for(int i=1;i<=100;i++){
+			try {
+				List<WebElement> list = driver.findElements(By.id("com.corp21cn.mail189:id/action_btn"));
+				list.get(1).click();
+				elementManager.waitForElement(driver, By.id("com.corp21cn.mail189:id/compose_email_action"), 10).click();
+				elementManager.waitForElement(driver,By.id("com.corp21cn.mail189:id/to"),10).sendKeys("13682211214@189.cn");
+				driver.findElement(By.id("com.corp21cn.mail189:id/subject")).sendKeys("test");
+				driver.findElement(By.id("com.corp21cn.mail189:id/message_content")).sendKeys("123456789012345678901234567890");
+				driver.findElement(By.id("com.corp21cn.mail189:id/attachment_add_btn")).click();
+				List<WebElement> list2 = driver.findElements(By.id("com.corp21cn.mail189:id/cn21_dialog_choose_item"));
+				list2.get(5).click();
+				driver.findElement(By.name("0.")).click();
+				driver.findElement(By.name("test2M.rar")).click();
+				driver.findElement(By.id("com.corp21cn.mail189:id/navigation_message_edit")).click();
+				driver.findElement(By.id("com.corp21cn.mail189:id/navigation_message_edit_view")).click();
+				CommonUtil.adbentry();// 发送一个广播给辅助工具接收记录时间
+				System.out.println("辅助工具。。。");
+				sleep(15000);
+			} catch (Exception e) {
+				screenShot(driver);
+				driver.closeApp();
+				driver.launchApp();
+				continue;
+			}
+		}
+
+
+	}
+
+	public void sleep(long millis){
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	// 屏幕截图
+	public  void screenShot(AndroidDriver driver) {
+		try {
+			File screenshot = driver.getScreenshotAs(OutputType.FILE); // 截取当前图片
+			FileUtils.copyFile(screenshot, new File(
+					fileDir + screenshotName + formatUtil.getSystemTime(" - MM.dd-HH.mm.ss") + ".png"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}

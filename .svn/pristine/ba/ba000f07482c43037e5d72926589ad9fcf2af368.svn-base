@@ -1,0 +1,107 @@
+package com.ctc.mail.timedelay;
+
+import io.appium.java_client.android.AndroidDriver;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
+import com.ctc.mail.common.CommonUtil;
+import com.ctc.mail.common.User;
+import com.ctc.mail.dao.TestSqlHelper;
+import com.ctc.mail.successratio.Components139;
+
+import java.io.File;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class Test139 {
+	public AndroidDriver driver;
+	public  SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	// 工程根目录
+	String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/");
+	String apkDir = projectRootPath + "apk/"; // 安装包的位置
+	String apkName = "139.apk"; // 安装包名
+	String appPackage = "cn.cj.pe"; // 程序的package
+	String appActivity = "com.mail139.about.LaunchActivity"; // 程序的Activity
+	String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	String fileName = "mail139.xls"; // 记录文档的文件名
+	String screenshotName = "mail139_test139app"; // 截图的名字前缀
+	
+	
+
+	@Before
+	public void setUp() throws Exception {
+		DesiredCapabilities capabilities = new DesiredCapabilities();
+		capabilities.setCapability("platformName", "Android");// 你要测试的手机操作系统
+		capabilities.setCapability("deviceName", "Android");// 使用的手机类型或模拟器类型，真机时输入Android
+		capabilities.setCapability("platformVersion", "4.4.4");// 手机操作系统版本，可不更改
+		capabilities.setCapability("appPackage", appPackage);// 你想运行的Android应用的包名
+		capabilities.setCapability("appActivity", appActivity);// 你要启动的Android
+		capabilities.setCapability("unicodeKeyboard", true);
+		capabilities.setCapability("resetKeyboard", true);
+		driver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"), capabilities);// 若测试多台手机需为开启多个appium，且修改4725（一台对应一个）
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		driver.quit();
+	}
+
+	/**
+	 * 4G网络下时延
+	 * @throws Exception
+	 */
+	@Test
+	public void test() throws Exception {
+		String networkType = "";
+		//收件人
+		String recipient= "18718879146@139.com";
+		User user = new User("18588872082","Deng5375585");
+		String path="sdcard/139PushEmail/download/"+user.getUser()+"@139.com/*test2M.rar";
+		String filename ="test2M";
+		String productName = "139";
+		String groupId = "1";
+		boolean dataEnabled = driver.getNetworkConnection().dataEnabled();
+		boolean wifiEnabled = driver.getNetworkConnection().wifiEnabled();
+		double logintime = 0 ;
+		double readtime = 0;
+		double sendtime = 0;
+		double downloadtime = 0;
+		double receivetime = 0;
+		
+		if((!wifiEnabled) && dataEnabled){
+			networkType = "4G";
+		}else {
+			networkType = "CMCC";
+		}
+		
+		System.out.println("---------------139邮箱客户端"+networkType+"网络测试----------------");
+	
+		for (int i = 0; i < 1; i++) {
+			try {
+				String currentTime = CommonUtil.currentTime();
+				System.out.println("当前时间："+currentTime+" ");
+				
+				Components139 components = new Components139();
+				logintime = components.testLoginDelay(driver,networkType,user,i); 
+				readtime = components.testUnReadMail(driver); 
+				downloadtime = components.testDownLoad(driver, path,filename);
+				sendtime = components.testWriterMail(driver,recipient);
+				receivetime = components.testReceiveMail(driver);
+				
+				String[] parameters = { productName, networkType, f.format(new Date()), String.valueOf(logintime/1000), String.valueOf(receivetime/1000), String.valueOf(readtime/1000), String.valueOf(sendtime/1000), String.valueOf(downloadtime/1000), groupId};
+				TestSqlHelper.sqlInsertDelay(parameters);
+				components.quit(driver);
+			} catch (Exception e) {
+				//截图
+				CommonUtil.screenShot(driver,path,screenshotName,i);
+				e.printStackTrace();
+			}
+		}
+	}
+
+	
+}

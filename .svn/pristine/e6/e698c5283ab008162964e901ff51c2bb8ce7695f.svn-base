@@ -1,0 +1,489 @@
+package com.ctc.mail.successratio;
+
+import io.appium.java_client.android.AndroidDriver;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
+
+import pers.vinken.appiumUtil.elementManager;
+
+import com.ctc.mail.common.CommonUtil;
+import com.ctc.mail.common.Location;
+import com.ctc.mail.common.User;
+
+public class Components139 {
+	public int timeout = 60;
+	public static SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd H:m:s");
+	//首次登陆
+	public void testFirstLogin(AndroidDriver driver,String networkType,User user,boolean nocache) {
+		if(nocache)
+		{
+		  driver.resetApp();
+		}
+	    CommonUtil.sleep(10000);
+	    if(!networkType.equals("4G"))
+	    {
+	    //首次登陆时，点击取消
+	      watcherForCancel(driver,By.name("取消"));
+	    //输入账号和密码
+    	elementManager.waitForElement(driver, By.id("cn.cj.pe:id/login_name"), timeout).sendKeys(user.getUser());
+		driver.findElement(By.id("cn.cj.pe:id/login_password")).click();
+		driver.findElement(By.id("cn.cj.pe:id/login_password")).sendKeys(user.getPassword());
+		
+		driver.findElement(By.id("cn.cj.pe:id/login")).click();
+	    
+	    }
+	   // 开始体验
+	    elementManager.waitForElement(driver, By.id("cn.cj.pe:id/check"), timeout);
+	    List<WebElement> list = driver.findElements(By.id("cn.cj.pe:id/check"));
+	    list.get(0).click();
+	    CommonUtil.sleep(1000);
+	    list.get(1).click();
+	   //点击开始体验
+	    elementManager.waitForElement(driver, By.id("cn.cj.pe:id/submit"), timeout).click();
+	    
+}
+  //首次登陆
+   public void testFirstLogin(AndroidDriver driver,String networkType,User user)
+   {
+	   testFirstLogin(driver,networkType,user,true);
+   }
+   
+ 
+	//4G首次登陆
+	public void testFirstLogin4G(AndroidDriver driver)
+	{
+		testFirstLogin(driver,"4G",null);
+	}
+	
+	//CMCC首次登陆
+	public void testFirstLoginCMCC(AndroidDriver driver)
+	{
+		User user = new User("18718879146","18879146");
+		testFirstLogin(driver,"CMCC",user);
+	}
+	
+	
+	//退出
+	public void quit(AndroidDriver driver)
+	{
+		int	width = driver.manage().window().getSize().width;
+		int	height = driver.manage().window().getSize().height;
+        CommonUtil.sleep(5000);
+		//点击【主菜单】
+		elementManager.checkandClick(driver, By.id("cn.cj.pe:id/hjl_headicon"));
+		CommonUtil.sleep(5000);
+		// 点击【设置】
+		WebElement element = driver
+				.findElementByAndroidUIAutomator("new UiSelector().resourceId(\"cn.cj.pe:id/menu_list\")");
+		List<WebElement> list = element.findElements(By.className("android.widget.LinearLayout"));
+		list.get(23).click();
+		CommonUtil.sleep(5000);
+		driver.swipe(width / 3, height - 100, width / 3, height / 2, 200);// 上拉
+		driver.swipe(width / 3, height - 100, width / 3, height / 2, 200);// 上拉
+		CommonUtil.sleep(200);
+		//点击【退出】。
+		driver.findElementById("cn.cj.pe:id/log_off").click();
+		CommonUtil.sleep(200);
+		// 确认退出
+		driver.findElement(By.id("cn.cj.pe:id/right")).click();
+		driver.closeApp();
+	}
+	
+	//登陆成功率
+	public void testloginsu(AndroidDriver driver,String networkType,String screenshotName,String path,String excelName,User user) {
+		System.out.println("开始进行"+networkType+"网络下登录成功率测试");
+		for (int i = 0; i < 50; i++) {
+			try {
+				driver.launchApp();// 重新启动App
+				CommonUtil.sleep(3000);
+				int	width = driver.manage().window().getSize().width;
+				int	height = driver.manage().window().getSize().height;
+				elementManager.waitForElement(driver, By.id("cn.cj.pe:id/login_name"), timeout).sendKeys(user.getUser());
+				driver.findElement(By.id("cn.cj.pe:id/login_password")).click();
+				driver.findElement(By.id("cn.cj.pe:id/login_password")).sendKeys(user.getPassword());
+				long startTime = System.currentTimeMillis();
+				driver.findElement(By.id("cn.cj.pe:id/login")).click();
+				WebElement we = elementManager.waitForElement(driver, By.id("cn.cj.pe:id/actionbar_sub_title"), timeout);
+				if(we !=null)
+				{
+				    long endTime = System.currentTimeMillis();
+					long time = endTime - startTime;
+					String ipass = "";
+					if (time < 30000) {
+						ipass = "成功";
+					} else {
+						ipass = "失败";
+					}
+					CommonUtil.inputToExcel(i, "登陆", ipass, f.format(new Date(startTime)),f.format(new Date(endTime)),time,path,excelName);
+					System.out.print("当前时间："+CommonUtil.currentTime()+" ");
+					System.out.println("第"+i + "次登陆： " + ipass +","+ time+"ms");
+				}else{
+					CommonUtil.inputToExcel(i, "登陆", "失败", "","",0,path,excelName);
+					System.out.print("当前时间："+CommonUtil.currentTime()+" ");
+					System.out.println("第"+i + "次登陆： 失败");
+				}
+					elementManager.waitForElement(driver, By.id("cn.cj.pe:id/hjl_headicon"), 5);
+					elementManager.checkandClick(driver, By.id("cn.cj.pe:id/hjl_headicon"));
+					WebElement element = driver
+							.findElementByAndroidUIAutomator("new UiSelector().resourceId(\"cn.cj.pe:id/menu_list\")");
+					List<WebElement> list = element.findElements(By.className("android.widget.LinearLayout"));
+					list.get(23).click();
+					CommonUtil.sleep(200);
+					driver.swipe(width / 2, height - 100, width / 2, height / 2, 200);
+					CommonUtil.sleep(200);
+					driver.swipe(width / 2, height - 100, width / 2, height / 2, 200);
+					CommonUtil.sleep(500);
+					driver.findElementById("cn.cj.pe:id/log_off").click();
+					// 确认退出
+					driver.findElement(By.id("cn.cj.pe:id/right")).click();
+					driver.closeApp();// 关闭APP
+				
+				
+			} catch (Exception e) {
+				CommonUtil.inputToExcel(i, "登陆", "失败", "","", 0,path,excelName);
+				System.out.print("当前时间："+CommonUtil.currentTime()+" ");
+				System.out.println("第"+i + "次登陆： 登陆失败！");
+				CommonUtil.screenShot(driver,path,screenshotName,i);
+				driver.closeApp();
+				driver.launchApp();
+			} 
+		}
+	}
+	
+	//发送成功率
+	public void testsendsu ( AndroidDriver driver,String networkType,String recipient,String path,String excelName,String screenshotName) {
+		System.out.println("开始进行"+networkType+"网络下发送邮件成功率测试");
+		for (int i = 0; i < 2; i++) {
+			try {
+				CommonUtil.sleep(3000);
+				driver.findElement(By.id("cn.cj.pe:id/actionbar_right_view")).click();
+				elementManager.waitForElement(driver, By.id("cn.cj.pe:id/to_wrapper"), timeout)
+						.sendKeys(recipient);
+				
+				driver.findElement(By.id("cn.cj.pe:id/subject")).click();
+
+				driver.findElement(By.id("cn.cj.pe:id/subject")).sendKeys("test" +i);
+				// 设定正文长度
+				String textField = "123456789012345678901234567890";
+		
+				WebElement body = driver.findElement(By.id("cn.cj.pe:id/editTextField"));
+				body.click();
+				//edittestclear(driver, "邮件内容");
+				body.sendKeys(textField);
+				driver.findElement(By.id("cn.cj.pe:id/add_attachment")).click();
+				elementManager.waitForElement(driver, By.id("cn.cj.pe:id/attach_display_file"), timeout).click();
+				elementManager.waitForElement(driver, By.name("本地文件"), timeout).click();
+				elementManager.waitForElement(driver, By.name("0"),timeout).click();
+				elementManager.waitForElement(driver, By.name("0."), timeout).click();
+				elementManager.waitForElement(driver, By.name("test2M.rar"), timeout).click();
+				elementManager.checkandClick(driver,By.id("cn.cj.pe:id/check_button"));
+				long starttime =System.currentTimeMillis();
+				elementManager.waitForElement(driver, By.id("cn.cj.pe:id/txt_send"), 2)
+						.click();
+				WebElement we=	elementManager.waitForElement(driver, By.id("cn.cj.pe:id/gif_success_img"), 1000);
+				long endtime =System.currentTimeMillis();				
+				long sendtime = endtime-starttime;
+				if(we !=null)
+				{	
+					CommonUtil.inputToExcel(i, "发送邮件", "成功", f.format(new Date(starttime)),f.format(new Date(endtime)),sendtime,path,excelName);
+					System.out.print("当前时间："+CommonUtil.currentTime()+" ");
+					System.out.println("第"+i + "次发送邮件： 成功,"+ sendtime+"ms");
+				}else
+				{
+				CommonUtil.inputToExcel(i, "发送邮件", "失败", "","",0,path,excelName);
+				System.out.print("当前时间："+CommonUtil.currentTime()+" ");
+				System.out.println("第"+i + "次发送邮件： 失败");
+				CommonUtil.screenShot(driver,path,screenshotName,i);	
+				}
+				driver.findElement(By.id("cn.cj.pe:id/hjl_headicon")).click();
+				CommonUtil.sleep(5000);
+				
+			} catch (Exception ex) {
+				System.out.print("当前时间："+CommonUtil.currentTime()+" ");
+				System.out.println("第"+i + "次发送邮件： 失败");
+				CommonUtil.screenShot(driver,path,screenshotName,i);
+				driver.closeApp();
+				driver.launchApp();
+			}
+		}
+	}
+	
+	    // 登陆时延
+	    public long testLoginDelay(AndroidDriver driver,String networkType,User user,int i) {
+			User firUser = new User("18718879146","18879146");
+	    	Components139 components = new Components139();
+			components.testFirstLogin(driver,networkType,firUser);
+			components.quit(driver);
+			driver.launchApp();
+			// 登录另一个账号，计算首次登录时延
+			elementManager.waitForElement(driver, By.id("cn.cj.pe:id/login_name"), 10).sendKeys(user.getUser());
+			driver.findElement(By.id("cn.cj.pe:id/login_password")).click();
+			driver.findElement(By.id("cn.cj.pe:id/login_password")).sendKeys(user.getPassword());
+			driver.findElement(By.id("cn.cj.pe:id/login")).click();
+			// 记下登录时间
+			long starttime = System.currentTimeMillis();
+			long time = 0;
+			String status = "";
+			WebElement e= elementManager.waitForElement(driver, By.id("cn.cj.pe:id/hjl_headicon"),timeout);
+			if(e!=null)
+			{
+				// 记下登录结束时间
+			    long endTime = System.currentTimeMillis();
+				time = endTime - starttime;
+				status = "成功";
+			}else{
+				time = 0;
+				status = "失败";
+			}
+			System.out.print("第"+i + "次登陆： " +status+"," +time+"ms");
+			return time;
+		}
+
+		// 打开未读邮件时延
+		public long testUnReadMail(AndroidDriver driver) {
+			// 点击【收件箱】，选择【未读】邮件按钮
+		  WebElement list =elementManager.waitForElement(driver, By.id("android:id/list"), timeout);
+		  List<WebElement> mailList = list.findElements(By.className("android.widget.LinearLayout"));
+		  CommonUtil.sleep(3000);
+		  // 打开第一封未读邮件
+		   mailList.get(0).click();
+		   long starttime = System.currentTimeMillis();
+		   long time = 0;
+		   String status = "";
+		   WebElement e= elementManager.waitForElement(driver, By.name("123456789012345678901234567890"),timeout);
+		   if(e!=null)
+			{
+				// 记下结束时间
+			    long endTime = System.currentTimeMillis();
+				time = endTime - starttime;
+				status = "成功";
+			}else{
+				time = 0;
+				status = "失败";
+			}
+		   System.out.print("打开未读邮件时延： " +status+"," +time+"ms");
+		 
+		   return time;
+			
+		}
+		
+		//下载附件
+		public long testDownLoad(AndroidDriver driver,String path,String filename)
+		{
+			int	width = driver.manage().window().getSize().width;
+			int	height = driver.manage().window().getSize().height;
+			if(CommonUtil.adbFindFile(path,filename))
+			{
+				CommonUtil.adbDeleteFile(path);
+			}
+			CommonUtil.sleep(3000);
+			Location location = CommonUtil.getLocation(1440, 2560, width,
+					height, 120, 800);
+			CommonUtil.sleep(1000);
+			// 点击【下载】
+			CommonUtil.adbClickElement(String.valueOf(location.getX()),
+					String.valueOf(location.getY()));
+			long starttime = System.currentTimeMillis();
+			long time = 0;
+			String status = "";
+			//等待下载
+			boolean isexists= CommonUtil.adbwaitforfile(path,filename,60000);
+			if(isexists)
+			{
+				// 记下结束时间
+			    long endTime = System.currentTimeMillis();
+				time = endTime - starttime;
+				status = "成功";
+			}else{
+				time = 0;
+				status = "失败";
+			}
+		    System.out.print("下载附件时延： " +status+"," +time+"ms");
+		    
+			elementManager.checkandClick(driver, By.id("cn.cj.pe:id/actionbar_back"));// 返回收件箱列表
+		    elementManager.waitForElement(driver, By.id("android:id/list"), timeout);
+		    driver.swipe(width-10, 400,10 , 400, 500);
+		    elementManager.waitForElement(driver, By.id("cn.cj.pe:id/back_delete"), timeout).click();;
+			return time;
+		}
+
+		// 发送邮件时延
+		public long testWriterMail(AndroidDriver driver,String recipient) {
+			// 写邮件，点击【写邮件】按钮
+			CommonUtil.sleep(1000);
+			driver.findElement(By.id("cn.cj.pe:id/actionbar_right_view")).click();
+			elementManager.waitForElement(driver, By.id("cn.cj.pe:id/to_wrapper"), 10).sendKeys(recipient);
+
+			driver.sendKeyEvent(66);
+			driver.findElement(By.id("cn.cj.pe:id/subject")).sendKeys("test");
+			// 设定正文长度
+			String textField = "123456789012345678901234567890";
+			WebElement body = driver.findElement(By.id("cn.cj.pe:id/editTextField"));
+		
+			body.sendKeys(textField);
+			// 添加附件
+			driver.findElement(By.id("cn.cj.pe:id/add_attachment")).click();
+			elementManager.waitForElement(driver, By.id("cn.cj.pe:id/attach_display_file"), 5).click();
+			elementManager.waitForElement(driver, By.name("本地文件"), 5).click();
+			elementManager.waitForElement(driver, By.name("0"), 5).click();
+			elementManager.waitForElement(driver, By.name("0."), 5).click();
+			elementManager.waitForElement(driver, By.name("test2M.rar"), 5).click();
+			elementManager.checkandClick(driver, By.id("cn.cj.pe:id/check_button"));
+			long starttime = System.currentTimeMillis();
+			elementManager.waitForElement(driver, By.id("cn.cj.pe:id/txt_send"), 2).click();
+
+			WebElement e = elementManager.waitForElement(driver, By.name("已完成"),1000);
+			long time = 0;
+			String status = "";
+			if(e!=null)
+			{
+				// 记下结束时间
+			    long endTime = System.currentTimeMillis();
+				time = endTime - starttime;
+				status = "成功";
+			}else{
+				time = 0;
+				status = "失败";
+			}
+			//返回邮件列表
+			driver.findElement(By.id("cn.cj.pe:id/hjl_headicon")).click();
+			CommonUtil.sleep(5000);
+			System.out.println("发送邮件时延： " +status+"," +time+"ms");
+			return time;
+		}
+		
+		//点击取消
+		public static WebElement watcherForCancel(AndroidDriver driver,By by)
+		{
+		 WebElement e =null;
+		 
+		 try {
+			e = driver.findElement(by);
+			e.click();
+		} catch (Exception e1) {
+			
+		}
+		 return e;
+		}
+		
+		 //无缓存登陆
+	  public void testFirstLoginNoCache(AndroidDriver driver,String networkType,String path,String excelName,User user) {
+			
+			 testFirstLogin(driver,networkType,user,false);
+			  //等待未读文本出现
+			 WebElement e=  elementManager.waitForElement(driver, By.id("cn.cj.pe:id/mailAlert"), 120);
+			 int noreademailcount=0;
+			 String strflowtotal="";
+			 if(e!=null)
+			 {
+				 noreademailcount = Integer.parseInt(e.getAttribute("text"));
+				 //如果有20封未读邮件，则进入360卫士获取流量消耗
+				 if(noreademailcount == 20)
+				 {
+					 strflowtotal = recordFlow(driver,"139邮箱");
+					 String currentTime = CommonUtil.currentTime();
+					 System.out.print("当前时间："+currentTime+" 消耗流量"+strflowtotal);
+					 CommonUtil.inputToExcel(0, currentTime,"首次登陆流量", strflowtotal, " ", 0,path,excelName);
+					 
+				 }else
+				 {
+					 System.out.println("未读邮件数量不对："+noreademailcount);
+				 }
+			 }else
+			 {
+				 System.out.println("没有找到未读邮件文本");
+			 }
+		   }
+		   //记录360卫士的流量
+		   public String recordFlow(AndroidDriver driver,String findText)
+		   {
+			    String  strflowtotal="";
+			    int	width = driver.manage().window().getSize().width;
+				int	height = driver.manage().window().getSize().height;
+			 //点击Home按键
+				 driver.sendKeyEvent(3);
+				 Location location = CommonUtil.getLocation(1440, 2560, width,height, 900, 1800);
+				 CommonUtil.sleep(1000);
+					// 点击【360图标】
+				 CommonUtil.adbClickElement(String.valueOf(location.getX()),String.valueOf(location.getY()));
+				 //driver.startActivity(appPackage360, appActivity360); 
+				 elementManager.waitForElement(driver, By.name("话费•流量"), timeout).click();
+				 elementManager.waitForElement(driver, By.name("软件流量管理"), timeout).click();
+				 WebElement item139 = elementManager.waitForElement(driver, By.name(findText), 5);
+				 if(item139 ==null)
+				 {
+				   driver.scrollTo(findText);
+				 }
+				 WebElement flowtotal = driver.findElementByXPath("//android.widget.TextView[contains(@text,'"+findText+"')]/following-sibling::android.widget.TextView[1]");
+				 strflowtotal = flowtotal.getAttribute("text");
+				 elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+				 elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_setting"), timeout).click();
+				 elementManager.waitForElement(driver, By.name("清空流量统计数据"), timeout).click();
+				 elementManager.waitForElement(driver, By.name("确定"), timeout).click();
+				 //返回到360主界面
+				 elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+				 elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+				 driver.sendKeyEvent(3);
+				 return strflowtotal;
+		   }
+		   
+		   //加载一百封邮件
+		   public void testLoadMail(AndroidDriver driver,String networkType,User user)
+		   {
+			   int	width = driver.manage().window().getSize().width;
+			   int	height = driver.manage().window().getSize().height;
+			   testFirstLogin(driver,networkType,user,false);
+				  //等待收件箱出现
+			   elementManager.waitForElement(driver, By.name("收件箱"), 120);
+			   CommonUtil.sleep(30000);
+			   //循环查出邮件直到找到为止
+			   while(!elementManager.doesWebElementExist(driver, By.name("已没有更多邮件")))
+			   {
+				   boolean isDisplay = false;
+				   while(!elementManager.doesWebElementExist(driver, By.name("加载更多邮件")))
+					{
+					   driver.swipe(width/2, height-100, width/2, 350, 500);
+					   if(elementManager.doesWebElementExist(driver, By.name("已没有更多邮件")))
+					   {
+						   isDisplay = true;
+						   break;
+					   }
+					}
+				   if(!isDisplay)
+				   {
+				      elementManager.waitForElement(driver, By.name("加载更多邮件"), 30).click();
+				   }else
+				   {
+					   break;
+				   }
+			   }
+			   //清空流量
+			   recordFlow(driver,"139邮箱");
+			   //等待3分钟
+			   CommonUtil.sleep(300000);
+			   
+		   }
+		   
+		   //空刷邮件
+		   public String testBrushMail(AndroidDriver driver,String appPackage,String appActivity)
+		   {
+			   
+			   int	width = driver.manage().window().getSize().width;
+			   int	height = driver.manage().window().getSize().height;
+			   String strflowtotal = "";
+			   driver.startActivity(appPackage, appActivity);
+			   elementManager.waitForElement(driver, By.name("收件箱"), 120);
+			   //空刷一次
+			   driver.swipe(width/2, 350, width/2, height-100, 500);
+			   strflowtotal = recordFlow(driver,"139邮箱");
+			   CommonUtil.sleep(30000);
+			   return  strflowtotal;
+		   }
+		   
+	
+}

@@ -1,0 +1,85 @@
+package com.ctc.mail.receivemail;
+
+import java.util.List;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import pers.vinken.appiumUtil.elementManager;
+
+public class ReQQ {
+
+	private final static String userName = "3320023240";
+	private final static String userPWD = "1234567890"; // 邮箱密码
+
+	public static void main(String[] args) {
+		
+		WebDriver driver = new ChromeDriver();
+		ReQQ t = new ReQQ();
+		t.case1(driver);	
+	}
+
+	/**
+	 * 登陆界面 发送邮件
+	 * 
+	 * @param driver
+	 */
+	public long case1(WebDriver driver) {
+		long time =0;
+		driver.get("https://mail.qq.com/");
+		driver.switchTo().frame(driver.findElement(By.xpath("//iframe[@id='login_frame']")));
+        WebElement e=elementManager.waitForElement(driver, By.id("switcher_plogin"), 60);
+    
+        e.click();
+        WebElement e1=elementManager.waitForElement(driver, By.name("u"), 60);
+		e1.sendKeys(userName+"@qq.com");
+		WebElement txtpass =elementManager.waitForElement(driver, By.name("p"), 60);
+
+		txtpass.clear();
+		txtpass.sendKeys(userPWD);
+		
+        e = elementManager.waitForElement(driver,By.id("login_button"),60);
+		e.click();
+		// 登陆时间 mainFrame
+		elementManager.waitForElement(driver,By.id("subject"),60);
+	
+		e =elementManager.waitForElement(driver, By.xpath(".//*[@id='composebtn']"), 10);
+		e.click();
+		e = elementManager.waitForElement(driver, By.id("mainFrame"), 10);
+		driver.switchTo().frame(e); 
+		e = elementManager.waitForElement(driver, By.xpath("//td[@class='qmEditorContent']/iframe"), 10);
+		e = elementManager.waitForElement(driver, By.xpath("//div[@id='toAreaCtrl']/div[@class='addr_text']/input"), 10);
+		e.sendKeys("2725247461@qq.com");
+		e = elementManager.waitForElement(driver, By.xpath("//td[@class='content_title']/div/div/div/input[@id='subject']"),
+				10);
+		e.sendKeys("receiveMail");
+		
+		e = elementManager.waitForElement(driver, By.xpath("//a[@class='btn_gray btn_space']"), 100);
+		e.click();
+
+		driver.switchTo().defaultContent();
+		e = elementManager.waitForElement(driver, By.xpath("//iframe[@id='mainFrame']"), 10);
+		driver.switchTo().frame(e);
+		// 等待发送完毕
+		boolean isEnd = false;
+		while (!isEnd) {
+			List<WebElement> list = driver.findElements(By.xpath(".//b[@id='sendinfomsg' and @class='biginfo_m']"));
+			for (WebElement es : list) {
+				if (es.getText().equals("您的邮件已发送")) {
+					isEnd = true;
+					 time=System.currentTimeMillis();
+					driver.close();
+				}
+			}
+		}
+	   return time;
+	}
+
+}

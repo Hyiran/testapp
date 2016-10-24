@@ -1,0 +1,82 @@
+package com.ctc.mail.common;
+
+import java.util.List;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
+
+import com.ctc.mail.common.CommonUtil;
+
+import io.appium.java_client.android.AndroidDriver;
+import pers.vinken.appiumUtil.elementManager;
+
+/**
+ * 测试应用资源消耗——流量
+ * @author xiaoM
+ * @version 360安全卫士版本 3.5.6
+ */
+public class Safe360Record {	
+	public static int timeout = 60;
+	/**
+	 * 清空360安全卫士流量记录
+	 * @param driver
+	 * @param i 输入1为2G/3G/4G;输入2为WiFi
+	 */
+	public static void Clear360FlowRecord(AndroidDriver driver,int i){
+		int click = i-1;
+		CommonUtil.adbClearCache("com.qihoo360.mobilesafe");
+		CommonUtil.adbStartAPP("com.qihoo360.mobilesafe/com.qihoo360.mobilesafe.ui.index.AppEnterActivity");
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/btn_privacy_confirm"), timeout).click();
+		CommonUtil.sleep(3000);
+		WebElement e = elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_btn_left"), 3);
+		if(e!=null){
+			e.click();
+		}
+		elementManager.waitForElement(driver, By.name("话费•流量"), timeout).click();
+		elementManager.waitForElement(driver, By.name("软件流量管理"), timeout).click();
+		elementManager.waitForElement(driver, By.name("2G/3G/4G消耗"), timeout).click();
+		List<WebElement> button = driver.findElements(By.id("com.qihoo360.mobilesafe:id/common_row_title"));
+		if(click==0){
+			button.get(0).click();
+		}else{
+			button.get(1).click();
+		}
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_setting"), timeout).click();
+		elementManager.waitForElement(driver, By.name("清空流量统计数据"), timeout).click();
+		elementManager.waitForElement(driver, By.name("确定"), timeout).click();
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+		driver.sendKeyEvent(3);
+	}
+	
+	
+	
+	/**
+	 * 360卫士记录流量
+	 * @param driver
+	 * @param findText 需要记录的应用名称
+	 * @return
+	 */
+	public static String recordFlow(AndroidDriver driver,String findText){
+		String  strflowtotal="";		    
+		CommonUtil.adbStartAPP("com.qihoo360.mobilesafe/com.qihoo360.mobilesafe.ui.index.AppEnterActivity");
+		elementManager.waitForElement(driver, By.name("话费•流量"), timeout).click();
+		elementManager.waitForElement(driver, By.name("软件流量管理"), timeout).click();
+		WebElement item139 = elementManager.waitForElement(driver, By.name(findText), 5);
+		if(item139 ==null){
+			driver.scrollTo(findText);
+		}
+		WebElement flowtotal = driver.findElementByXPath("//android.widget.TextView[contains(@text,'"+findText+"')]/following-sibling::android.widget.TextView[1]");
+		strflowtotal = flowtotal.getAttribute("text");
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_setting"), timeout).click();
+		elementManager.waitForElement(driver, By.name("清空流量统计数据"), timeout).click();
+		elementManager.waitForElement(driver, By.name("确定"), timeout).click();
+		//返回到360主界面
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+		elementManager.waitForElement(driver, By.id("com.qihoo360.mobilesafe:id/common_img_back"), timeout).click();
+		driver.sendKeyEvent(3);
+		return strflowtotal;
+	}
+}

@@ -1,0 +1,87 @@
+package com.ctc.mail.timedelay;
+
+import SpeedTest.SpeedTestApp;
+
+/**
+ * 运行四个产品的脚本
+ * @author yang
+ *
+ */
+public class RunAllApp {
+
+	public static void main(String[] args) throws Exception {
+		
+		String groupId = "1";
+		
+		startSpeed("139",groupId);
+		start139App();
+		
+		startSpeed("163",groupId);
+		start163App();
+		
+		startSpeed("QQ",groupId);
+		startQQApp();
+		
+		startSpeed("189",groupId);
+		start189App();
+	}
+	/**
+	 * 启动测速软件
+	 * @throws Exception
+	 */
+	public static void startSpeed(String productName,String groupId) throws Exception{
+		SpeedTestApp speed = new SpeedTestApp();
+		speed.setProductName(productName);
+		speed.setGroupId(groupId);
+		speed.setUp();
+		speed.test();
+		speed.tearDown();
+	}
+	
+	/**
+	 * 启动139APP 4G网络
+	 * @throws Exception
+	 */
+	public static void start139App() throws Exception{
+		Test139 test139 = new Test139();
+		test139.setUp();
+		test139.test();
+		test139.tearDown();
+	}
+	
+	
+
+    /**
+     * 启动163APP
+     * @throws Exception
+     */
+    public static void start163App() throws Exception{
+    	Test163 test163 = new Test163();
+    	test163.setUp();
+    	test163.test();
+    	test163.tearDown();
+	}
+
+    /**
+     * 启动189APP
+     * @throws Exception
+     */
+    public static void start189App() throws Exception{
+    	Test189 test189 = new Test189();
+    	test189.setUp();
+    	test189.test();
+    	test189.tearDown();
+    }
+
+    /**
+     * 启动QQAPP
+     * @throws Exception
+     */
+    public static void startQQApp() throws Exception{
+    	TestQQ testQQ = new TestQQ();
+    	testQQ.setUp();
+    	testQQ.runTest();
+    	testQQ.tearDown();
+    }
+
+}

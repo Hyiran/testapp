@@ -1,0 +1,74 @@
+package com.ctc.mail.receivemail;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import pers.vinken.appiumUtil.elementManager;
+import pers.vinken.appiumUtil.ioManager;
+
+import java.io.File;
+import java.io.IOException;
+
+public class Re139 {
+	static String projectRootPath = new File(System.getProperty("user.dir")).getPath().concat("/");
+	static String userName = "13427665067";// 139用户名
+	static String userPwd = "as525100";// 邮箱密码
+	static String userName2 = "18718879146@139.com";
+	static String title = "1"; // 邮件主题
+	static String fileDir = projectRootPath + "log/"; // 记录文档的储存路径
+	static String fileName = "mail139.xls"; // 记录文档的文件名
+
+	static long startime = 0;
+
+	public static void main(String[] args) {
+		for (int i = 1; i <= 20; i++) {
+			WebDriver driver = new ChromeDriver();
+			driver.manage().window().maximize();
+			testRe139(driver);
+			driver.close();
+			
+		}
+	}
+
+	static void testRe139(WebDriver driver) {
+		driver.get("http://mail.139.com/");
+		elementManager.waitForElement(driver, By.name("UserName"), 20).sendKeys(userName);
+		elementManager.waitForElement(driver, By.id("txtPass"), 20).sendKeys(userPwd);
+		driver.findElement(By.id("loginBtn")).click();
+		while (!elementManager.doesElementDisplay(driver, By.xpath("//input[@id='tb_mailSearch']"))) {
+		}
+		driver.findElement(By.xpath("//a[@id='btn_compose']")).click();
+		driver.switchTo()
+				.frame(elementManager.waitForElement(driver, By.xpath("//div[@id='div_main']/div[4]/iframe"), 20));
+		// 输入收件人
+		WebElement txttitle = elementManager.waitForElement(driver,
+				By.xpath("//*[@id='toContainer']/div/div[2]/div[2]/input"), 15);
+		txttitle.sendKeys(userName2);
+		// 邮件主题
+		driver.findElement(By.xpath(".//*[@id='txtSubject']")).sendKeys(title);
+		driver.findElement(By.id("bottomSend")).click();
+		elementManager.waitForElement(driver, By.xpath("//h1[@id='snedStatus']"), 15);
+		startime = System.currentTimeMillis();
+		System.out.println(startime);
+		inputToExcel();
+		sleep(25000);
+	}
+
+	// 用于设置等待时间，不用修改
+	public static void sleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void inputToExcel() {
+		try {
+			ioManager.writeToExcelFile(fileDir + fileName, "testRe139", startime + "\n");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+}

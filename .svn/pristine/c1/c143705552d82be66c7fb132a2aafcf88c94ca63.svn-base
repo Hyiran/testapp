@@ -1,0 +1,679 @@
+package com.ctc.mail.dao;
+
+import java.sql.CallableStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.Test;//必须引入的
+
+import com.ctc.mail.common.Status;
+
+public class TestSqlHelper {
+	
+	public  SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    /**
+     * 测试SqlHelper
+     * 每一个测试的方法前都要加@Test
+     * 一条SQL语句insert/update/delete
+     * @throws SQLException 
+     */
+    @Test
+    public void testSqlHelper1() throws SQLException {
+    	 String networkType = "CMCC";
+    	 String[] parameters = { networkType,networkType,networkType,networkType,networkType};
+    	 ResultSet rs = TestSqlHelper.sqlQueryData("tb_app_data_201609","139","CMCC");
+    	 
+    	
+    }
+    
+    /**
+	 * 将速度写入数据库
+	 */
+    public static void testInsertSpeed(String[] parameters) {
+        String sql = "insert into `tb_app_net_201609` (productName,networkType,nowTime,down,up,groupId) "
+        		+ "values(?,?,?,?,?,?);";
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+    
+    /**
+     * 时延数据
+     * @param parameters
+     * String[] parameters = { "139", "4G", "2016-09-12 10:27:40", "3.00", "3.00", "3.00", "3.00", "3.00", "3"};
+     */
+	public static void sqlInsertDelay(String[] parameters) {
+		String sql = "INSERT INTO `tb_app_data_201609` (productName,networkType,nowTime,logintime,receivetime,"
+				+ "readtime,sendtime,downtime,groupid)"
+				+ "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		SqlHelper.executeUpdate(sql, parameters);
+	}
+    
+	/**
+	 * 处理APP测试数据
+	 */
+	public static void sqlDataProcessing(){
+		//筛选网速
+		StringBuffer sqlFilterSpeed = new StringBuffer();
+		//筛选数据
+		StringBuffer sqlFilterData = new StringBuffer();
+		//处理数据，小于平均值0.2倍和大于平均数1.5倍的值为空
+		StringBuffer sqlResultData = new StringBuffer();
+		
+		sqlFilterSpeed.append("INSERT INTO `tb_app_net_filter_201609` (productName,networkType,nowTime,down,up,groupid)\r\n");
+		sqlFilterSpeed.append("select B.productName,B.networkType,B.nowTime,B.down,B.up,B.groupid from \r\n");
+				
+		sqlFilterSpeed.append("((select  * from \r\n");
+		sqlFilterSpeed.append("(select groupId,networkType,(STDDEV_SAMP(down) + STDDEV_SAMP(up))/2 as avgDEV from tb_app_net_201609\r\n");
+		sqlFilterSpeed.append("where networkType =?\r\n");
+		sqlFilterSpeed.append("group by groupId) a \r\n");
+		sqlFilterSpeed.append("order by a.avgDEV asc \r\n");
+		sqlFilterSpeed.append("limit 10)\r\n");
+		
+		sqlFilterSpeed.append("UNION\r\n");
+		
+		sqlFilterSpeed.append("(select  * from \r\n");
+		sqlFilterSpeed.append("(select groupId,networkType,(STDDEV_SAMP(down) + STDDEV_SAMP(up))/2 as avgDEV from tb_app_net_201609\r\n");
+		sqlFilterSpeed.append("where networkType =?\r\n");
+		sqlFilterSpeed.append("group by groupId) a \r\n");
+		sqlFilterSpeed.append("order by a.avgDEV asc \r\n");
+		sqlFilterSpeed.append("limit 10)) AA\r\n");
+		sqlFilterSpeed.append("left join tb_app_net_201609 B\r\n");
+		sqlFilterSpeed.append("on (AA.groupId = b.groupId and AA.networkType = b.networkType)\r\n");
+		sqlFilterSpeed.append("order by  b.productName,b.networkType,B.groupId\r\n");
+		
+		String[] paramsFilter = { "4G", "CMCC"};
+		
+		sqlFilterData.append("INSERT INTO `tb_app_data_filter_201609` (productName,networkType,nowTime,logintime,receivetime\r\n");
+		sqlFilterData.append(",readtime,sendtime,downtime,groupid)\r\n");
+		sqlFilterData.append("select BB.productName,BB.networkType,BB.nowTime,BB.logintime,BB.receivetime\r\n");
+		sqlFilterData.append(",BB.readtime,BB.sendtime,BB.downtime,BB.groupid from tb_app_net_filter_201609 AA\r\n");
+		sqlFilterData.append("left join tb_app_data_201609 BB\r\n");
+		sqlFilterData.append("on (AA.productName = BB.productName and AA.networkType = BB.networkType and AA.groupId = BB.groupId)\r\n");
+		sqlFilterData.append("order by  BB.productName,BB.networkType,BB.groupId asc\r\n");
+
+		
+		sqlResultData.append("INSERT INTO `tb_app_data_result_201609` (productName,networkType,nowTime,logintime,receivetime\r\n");
+		sqlResultData.append(",readtime,sendtime,downtime,groupid)\r\n");
+		sqlResultData.append("select AA.productName,AA.networkType,AA.nowTime,\r\n");
+		sqlResultData.append("(case when (AA.logintime <= BB.logintime*0.2 or AA.logintime >= BB.logintime*1.5) then null else AA.logintime end ) logintime,\r\n");
+		sqlResultData.append("(case when (AA.receivetime < BB.receivetime*0.2 or AA.receivetime > BB.receivetime*1.5) then null else AA.receivetime end ) receivetime,\r\n");
+		sqlResultData.append("(case when (AA.readtime <= BB.readtime*0.2 or AA.readtime >= BB.readtime*1.5) then null else AA.readtime end ) readtime,\r\n");
+		sqlResultData.append("(case when (AA.sendtime <= BB.sendtime*0.2 or AA.sendtime >= BB.sendtime*1.5) then null else AA.sendtime end ) sendtime,\r\n");
+		sqlResultData.append("(case when (AA.downtime <= BB.downtime*0.2 or AA.downtime >= BB.downtime*1.5) then null else AA.downtime end )downtime,AA.groupId\r\n");
+		sqlResultData.append("from tb_app_data_filter_201609 AA\r\n");
+		sqlResultData.append("left join \r\n");
+		sqlResultData.append("(select productName,networkType,avg(logintime) logintime,avg(receivetime) receivetime,avg(readtime) readtime,\r\n");
+		sqlResultData.append("avg(sendtime) sendtime,avg(downtime) downtime from tb_app_data_filter_201609\r\n");
+		sqlResultData.append("group by productName,networkType) BB\r\n");
+		sqlResultData.append("on (AA.productName = BB.productName and AA.networkType = BB.networkType)\r\n");
+		sqlResultData.append("order by  AA.productName,AA.networkType,AA.groupId asc\r\n");
+		
+		SqlHelper.executeUpdate(sqlFilterSpeed.toString(), paramsFilter);
+		SqlHelper.executeUpdate(sqlFilterData.toString(), null);
+		SqlHelper.executeUpdate(sqlResultData.toString(), null);
+		
+	}
+	
+	/**
+	 * 成功率
+	 * @param parameters
+	 */
+	public static void sqlInsertRate(String[] parameters){
+		 String sql = "INSERT INTO `tb_app_rate_result_201609` (productName,networkType,nowTime,caseName,time,status,groupid)"
+				+ "VALUES ( ?, ?, ?, ?, ?, ?, ?);";
+		 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 首次加载流量
+	 * @param parameters
+	 */
+	public static void sqlInsertLoadFlow(String[] parameters){
+		 String sql = "INSERT INTO `tb_app_flow_result_201609` (productName,networkType,nowTime,loadflow,groupid)"
+					+ "VALUES ( ?, ?, ?, ?, ?);";
+			 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 更新空刷流量
+	 * @param parameters
+	 */
+	public static void sqlUpdateBrushFlow(String[] parameters){
+		 String sql = "UPDATE `tb_app_flow_result_201609` set brushflow = ? where groupId = ?";
+		 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 待机资源消耗
+	 * @param parameters
+	 */
+	public static void sqlInsertStandby(String[] parameters){
+		String sql = "INSERT INTO `tb_app_standy_result_201609` (productName,networkType,nowTime,caseName,resource,groupid)"
+				+ "VALUES ( ?, ?, ?, ?, ?,?);";
+		 SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 查询所有网速
+	 * @param parameters
+	 * @param tableName 表明
+	 * @return
+	 */
+	public static ResultSet sqlQuerySpeed(String[] parameters,String tableName){
+		//所有网速
+		StringBuffer sqlQuerySpeed = new StringBuffer();
+		sqlQuerySpeed.append("select \r\n");
+		sqlQuerySpeed.append("AA.groupId,AA.nowTime,\r\n");
+		sqlQuerySpeed.append("AA.down as 139down,AA.up as 139up,\r\n");
+		sqlQuerySpeed.append("BB.down as QQdown,BB.up as QQup,\r\n");
+		sqlQuerySpeed.append("CC.down as 163down,CC.up as 163up,\r\n");
+		sqlQuerySpeed.append("DD.down as 189down,DD.up as 189up,\r\n");
+		sqlQuerySpeed.append("round(EE.stddown,2),round(EE.stdup,2),round(EE.avgDEV,2)\r\n");
+		sqlQuerySpeed.append("from \r\n");
+		sqlQuerySpeed.append("(select nowTime,down,up,groupId from "+tableName+"  where networkType = ? and productName = '139') AA\r\n");
+		sqlQuerySpeed.append("left join \r\n");
+		sqlQuerySpeed.append("(select nowTime,down,up,groupId from "+tableName+"  where networkType = ? and productName = 'QQ') BB on AA.groupId = BB.groupId\r\n");
+		sqlQuerySpeed.append("left join \r\n");
+		sqlQuerySpeed.append("(select nowTime,down,up,groupId from "+tableName+"  where networkType = ? and productName = '163') CC on BB.groupId = CC.groupId\r\n");
+		sqlQuerySpeed.append("left join \r\n");
+		sqlQuerySpeed.append("(select nowTime,down,up,groupId from "+tableName+"  where networkType = ? and productName = '189') DD on CC.groupId = DD.groupId\r\n");
+		sqlQuerySpeed.append("left join \r\n");
+		sqlQuerySpeed.append("(select groupId,STDDEV(down) as stddown,STDDEV(up) as stdup,(STDDEV(down) + STDDEV(up))/2 as avgDEV from "+tableName+" where networkType = ? group by groupId) EE\r\n");
+		sqlQuerySpeed.append("on DD.groupId = EE.groupId\r\n");
+		sqlQuerySpeed.append("order by  AA.groupId asc\r\n");
+		ResultSet rs = SqlHelper.executeQuery(sqlQuerySpeed.toString(), parameters);
+		return rs;
+		
+	}
+	
+	/**
+	 * 查询数据
+	 * @param parameters
+	 * @param tableName
+	 * @param productName
+	 * @param networkType
+	 * @return
+	 */
+	public static ResultSet sqlQueryData(String tableName,String productName,String networkType){
+		StringBuffer sqlQueryData = new StringBuffer();
+		sqlQueryData.append("select \r\n");
+		sqlQueryData.append("DD.groupId,DD.logintime,DD.receivetime,DD.readtime,DD.sendtime,DD.downtime,\r\n");
+		sqlQueryData.append("EE.loginrate,EE.sendrate,EE.receiverate,\r\n");
+		sqlQueryData.append("FF.loadflow,GG.brushflow,\r\n");
+		sqlQueryData.append("HH.resource as nomailflow,\r\n");
+		sqlQueryData.append("II.resource as hasmailflow,\r\n");
+		sqlQueryData.append("JJ.resource as nomailpower,\r\n");
+		sqlQueryData.append("KK.resource as nomailpower\r\n");
+		sqlQueryData.append("from \r\n");
+		
+		sqlQueryData.append("(\r\n");
+		
+		sqlQueryData.append("select @ROWNO1 := @ROWNO1 + 1 AS ROWNO,groupid,logintime,receivetime,readtime,sendtime,downtime from "+tableName+" AA ,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO1 := 0) T3\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"' \r\n");
+		sqlQueryData.append("and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("union\r\n");
+		sqlQueryData.append("select @ROWNO1 := @ROWNO1 + 1,'平均' as groupid,\r\n");
+		sqlQueryData.append("round(avg(logintime),2),\r\n");
+		sqlQueryData.append("round(avg(receivetime),2),\r\n");
+		sqlQueryData.append("round(avg(readtime),2),\r\n");
+		sqlQueryData.append("round(avg(sendtime),2),\r\n");
+		sqlQueryData.append("round(avg(downtime),2)\r\n");
+		sqlQueryData.append("from "+tableName+" BB\r\n");
+		sqlQueryData.append("where BB.productName = '"+productName+"' \r\n");
+		sqlQueryData.append("and BB.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append(") DD\r\n");
+		sqlQueryData.append("left join \r\n");
+		
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("(select 1 AS ROWNO,\r\n");
+		sqlQueryData.append("CONCAT(sum(case when (AA.caseName = '登陆成功率' and status = '成功') then 1 else 0 end) ,'%') as loginrate,\r\n");
+		sqlQueryData.append("CONCAT(sum(case when (AA.caseName = '发送成功率' and status = '成功') then 1 else 0 end) ,'%') as sendrate,\r\n");
+		sqlQueryData.append("CONCAT(sum(case when (AA.caseName = '接收成功率' and status = '成功') then 1 else 0 end) ,'%') as receiverate\r\n");
+		sqlQueryData.append("from tb_app_rate_result_201609 AA\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  \r\n");
+		sqlQueryData.append("and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("limit 100)\r\n");
+		sqlQueryData.append("union \r\n");
+		sqlQueryData.append("(select @ROWNO1 AS ROWNO,\r\n");
+		sqlQueryData.append("CONCAT(sum(case when (AA.caseName = '登陆成功率' and status = '成功') then 1 else 0 end) ,'%') as loginrate,\r\n");
+		sqlQueryData.append("CONCAT(sum(case when (AA.caseName = '发送成功率' and status = '成功') then 1 else 0 end) ,'%') as sendrate,\r\n");
+		sqlQueryData.append("CONCAT(sum(case when (AA.caseName = '接收成功率' and status = '成功') then 1 else 0 end) ,'%') as receiverate\r\n");
+		sqlQueryData.append(" from tb_app_rate_result_201609 AA\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  \r\n");
+		sqlQueryData.append("and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("limit 100)\r\n");
+		
+		sqlQueryData.append(")  EE on DD.ROWNO = EE.ROWNO\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select @ROWNO3:= @ROWNO3 + 1 AS ROWNO,FF.loadflow from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select loadflow,ABS(loadflow-avg) abs from tb_app_flow_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(loadflow) as avg from tb_app_flow_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 10) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO3 := 0) T3\r\n");
+		
+		sqlQueryData.append("UNION\r\n");
+		
+		sqlQueryData.append("select @ROWNO1 AS ROWNO,avg(FF.loadflow) from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select loadflow,ABS(loadflow-avg) abs from tb_app_flow_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(loadflow) as avg from tb_app_flow_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 10) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO3 := 0) T3) FF on DD.ROWNO = FF.ROWNO\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(\r\n");
+		
+		sqlQueryData.append("select @ROWNO4:= @ROWNO4 + 1 AS ROWNO,FF.brushflow from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select brushflow,ABS(brushflow-avg) abs from tb_app_flow_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(brushflow) as avg from tb_app_flow_result_201609\r\n"); 
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 10) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO4 := 0) T3\r\n");
+		
+		sqlQueryData.append("UNION\r\n");
+		
+		sqlQueryData.append("select @ROWNO1 AS ROWNO,avg(FF.brushflow) from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select brushflow,ABS(brushflow-avg) abs from tb_app_flow_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(brushflow) as avg from tb_app_flow_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 10) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO4 := 0) T3\r\n");
+		
+		sqlQueryData.append(") GG on DD.ROWNO = GG.ROWNO\r\n");
+		sqlQueryData.append("left JOIN\r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select @ROWNO5:= @ROWNO5 + 3 AS ROWNO,FF.resource from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '无邮件流量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '无邮件流量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO5 := -2) T3 \r\n");
+		
+		sqlQueryData.append("UNION\r\n");
+		sqlQueryData.append("select @ROWNO1 AS ROWNO,round(avg(FF.resource),2) from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '无邮件流量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '无邮件流量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF) HH on DD.ROWNO = HH.ROWNO\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select @ROWNO6:= @ROWNO6 + 3 AS ROWNO,FF.resource from\r\n"); 
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '有邮件流量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '有邮件流量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO6 := -2) T3 \r\n");
+		
+		sqlQueryData.append("UNION\r\n");
+		sqlQueryData.append("select @ROWNO1 AS ROWNO,round(avg(FF.resource),2) from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '有邮件流量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '有邮件流量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF  ) II on DD.ROWNO = II.ROWNO\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select @ROWNO7:= @ROWNO7 + 3 AS ROWNO,FF.resource from\r\n"); 
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '无邮件电量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '无邮件电量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO7 := -2) T3 \r\n");
+		
+		sqlQueryData.append("UNION\r\n");
+		sqlQueryData.append("select @ROWNO1 AS ROWNO,round(avg(FF.resource),2) from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '无邮件电量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '无邮件电量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF \r\n");
+		sqlQueryData.append(" ) JJ on DD.ROWNO = JJ.ROWNO\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select @ROWNO8:= @ROWNO8 + 3 AS ROWNO,FF.resource from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '有邮件电量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '有邮件电量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF,\r\n");
+		sqlQueryData.append("(SELECT @ROWNO8 := -2) T3 \r\n");
+		
+		sqlQueryData.append("UNION\r\n");
+		sqlQueryData.append("select @ROWNO1 AS ROWNO,round(avg(FF.resource),2) from \r\n");
+		sqlQueryData.append("(\r\n");
+		sqlQueryData.append("select resource,ABS(resource-avg) abs from tb_app_standy_result_201609 AA\r\n");
+		sqlQueryData.append("left join \r\n");
+		sqlQueryData.append("(select productName,avg(resource) as avg from tb_app_standy_result_201609 \r\n");
+		sqlQueryData.append("where productName = '"+productName+"'  and networkType = '"+networkType+"' and  caseName = '有邮件电量消耗') BB on (AA.productName = BB.productName)\r\n");
+		sqlQueryData.append("where AA.productName = '"+productName+"'  and AA.networkType = '"+networkType+"'\r\n");
+		sqlQueryData.append("and caseName = '有邮件电量消耗'\r\n");
+		sqlQueryData.append("order by abs\r\n");
+		sqlQueryData.append("limit 3) FF \r\n");
+		sqlQueryData.append(") KK on DD.ROWNO = KK.ROWNO\r\n");
+		
+		sqlQueryData.append("order by DD.ROWNO\r\n");
+		ResultSet rs = SqlHelper.executeQuery(sqlQueryData.toString(), null);
+		return rs;
+	}
+	
+	/**
+	 * 判断取号列是否存在
+	 * @param month
+	 * @return
+	 * @throws SQLException 
+	 */
+	public static boolean isExistOrder(String month) throws SQLException{
+		boolean isExist = false;
+		String sqlExistLog = "select 1  as isExist from tb_app_order where month = ?  LIMIT 1";
+		String[] parameters = { month};
+		ResultSet rs = SqlHelper.executeQuery(sqlExistLog, parameters);
+		while(rs.next()){
+			if(rs.getString(1).toString()=="1"){
+				isExist = true;
+			}
+		}
+		return isExist;
+	}
+	
+	/**
+	 * 写入取号
+	 * @param month
+	 */
+	public static void  insertOrder(String month){
+		String insert = "insert into tb_app_order (orderNo,month) VALUES('0',?)";
+		String[] parameters = { month};
+		SqlHelper.executeUpdate(insert, parameters);
+		
+	}
+	
+	/**
+	 * 获取测试groupId
+	 * @param month
+	 * @return
+	 * @throws NumberFormatException
+	 * @throws SQLException
+	 */
+	public static int getOrder(String month) throws NumberFormatException, SQLException{
+		int groupId = 0;
+		String sql = "select orderNo from tb_app_order where month = ? limit 1";
+		String[] parameters = { month};
+		ResultSet rs = SqlHelper.executeQuery(sql, parameters);
+		while(rs.next()){
+			groupId = Integer.parseInt(rs.getString(1).toString());
+		}
+        return groupId+1;
+	}
+	
+	/**
+	 * 更新取号
+	 * @param groupId
+	 * @param month
+	 */
+	public static void updateOrder(int groupId,String month){
+		String sql = "update tb_app_order set orderno =  ? where month = ?";
+		String[] parameters = {"\""+groupId+"\"", month};
+		SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 写入日志
+	 * @param pcName
+	 * @param groupId
+	 */
+	public static void insertLog(String pcName,int groupId){
+		String sql = "insert into tb_app_log(pcName,groupId,speed139,data139,speed163,data163,speedqq,dataqq,speed189,data189) VALUES (?,?,'N','N','N','N','N','N','N','N');";
+		String[] parameters = {pcName,"\""+groupId+"\""};
+		SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+	/**
+	 * 是否没有执行成功
+	 * @param pcName
+	 * @return
+	 * @throws SQLException 
+	 */
+	public static Status noSuccess(String pcName) throws SQLException{
+		Status status = new Status();
+		List<String> statusList = new ArrayList<String>();
+		status.setPcName(pcName);
+		String sql = "select * from tb_app_log where pcName= ?  order by id desc LIMIT 1";
+		String[] parameters = {pcName};
+		ResultSet rs = SqlHelper.executeQuery(sql, parameters);
+		while(rs.next()){
+			status.setGroupId(rs.getString(4).toString());
+			status.setSpeed139(rs.getString(5).toString());
+			status.setData139(rs.getString(6).toString());
+			status.setSpeed163(rs.getString(7).toString());
+			status.setData163(rs.getString(8).toString());
+			status.setSpeedqq(rs.getString(9).toString());
+			status.setDataqq(rs.getString(10).toString());
+			status.setData189(rs.getString(11).toString());
+			status.setData189(rs.getString(12).toString());
+		}
+		statusList.add(status.getSpeed139());
+		statusList.add(status.getData139());
+		statusList.add(status.getSpeed163());
+		statusList.add(status.getData163());
+		statusList.add(status.getSpeedqq());
+		statusList.add(status.getDataqq());
+		statusList.add(status.getSpeed189());
+		statusList.add(status.getDataqq());
+		//如果不包含,则为
+		if(!statusList.contains("N")){
+			status.setIsSuccess(true);
+		}
+        return status;
+	}
+	
+	/**
+	 * 更新日志状态
+	 * @param pcName
+	 * @param field
+	 */
+	public static void updateLog(String pcName,String field){
+		String sql = "update tb_app_log set "+field+" = 'Y' where pcName = ?";
+		String[] parameters = {pcName};
+		SqlHelper.executeUpdate(sql, parameters);
+	}
+	
+    public void testInsertMysql() {
+        String sql = "insert into `tb_web_data_201609` (productName,networkType,case1,"+
+  					"case2,case3,case4,case5,case6,case7,case8,case9,groupId) values(?, ?, ?, ?, ?, ?, "+
+  					"?, ?, ?, ?, ?, ?);";
+        String[] parameters = { "163", "4G", "1", "2","2","2","2","2","2","2","2","1"};
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    /**
+     * 测试一个事务的提交
+     */
+    @Test
+    public void testSqlHelper2() {
+        testUpdateMuti();
+    }
+
+    /**
+     * 测试SQl的Select语句
+     */
+    @Test
+    public void testSqlHelper3() {
+        testQuery();
+    }
+
+    /**
+     * 测试调用无返回值的存储过程
+     */
+    @Test
+    public void testSqlHelper4() {
+        testInsertProc();
+        testUpdateProc();
+        testDeleteProc();
+    }
+
+    /**
+     * 测试调用有返回值的存储过程
+     */
+    @Test
+    public void testSqlHelper5() {
+        testCallProcOutput();
+        testCallProcInput();
+    }
+
+    private void testCallProcInput() {
+        ResultSet rs = null;
+        try {
+            String sql = "{call proc_userinfo_findByUsername(?)}";
+            String[] in = { "Tom" };
+            // Integer[] out ={Types.INTEGER};
+            CallableStatement cs = (CallableStatement) SqlHelper.callProcInput(
+                    sql, in);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                System.out.println("username:" + rs.getString(2)
+                        + "\tpassword:" + rs.getString(3) + "\tsalary:"
+                        + rs.getDouble(5));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            SqlHelper.close(rs, SqlHelper.getCs(), SqlHelper.getConn());
+        }
+    }
+
+    private void testCallProcOutput() {
+        ResultSet rs = null;
+        try {
+            String sql = "{call proc_userinfo_getCount(?)}";
+            Integer[] out = { Types.INTEGER };
+            CallableStatement cs = (CallableStatement) SqlHelper
+                    .callProcOutput(sql, out);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                System.out.println("Record numbers:"+rs.getInt(1));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        } finally {
+            SqlHelper.close(rs, SqlHelper.getCs(), SqlHelper.getConn());
+        }
+    }
+
+    private void testDeleteProc() {
+        String sql = "{call proc_userinfo_delete(?)}";
+        String[] parameters = { "Jim" };
+        SqlHelper.callProc(sql, parameters);
+    }
+
+    private void testUpdateProc() {
+        String sql = "{call proc_userinfo_update(?,?,?)}";
+        String[] parameters = { "Lucy", "ncist", "5200.00" };
+        SqlHelper.callProc(sql, parameters);
+    }
+
+    private void testInsertProc() {
+        String sql = "{call proc_userinfo_insert(?,?,?,?)}";
+        String[] parameters = { "wYan", "wyan7", "female", "5600.00" };
+        SqlHelper.callProc(sql, parameters);
+    }
+
+    private void testUpdateMuti() {
+        String sql1 = "UPDATE userinfo SET salary=salary-100 WHERE username = ?";
+        String sql2 = "UPDATE userinfo SET salary=salary+100 WHERE username = ?";
+        String[] sql = { sql1, sql2 };
+        String[] sql1_params = { "Tom" };
+        String[] sql2_params = { "Jim" };
+        String[][] parameters = { sql1_params, sql2_params };
+        SqlHelper.executeUpdateMultiParams(sql, parameters);
+    }
+
+    private void testInsert() {
+        String sql = "INSERT INTO userinfo (username,password,gender,salary) VALUES (?,?,?,?)";
+        String[] parameters = { "wqiang", "wYan", "male", "6000.00" };
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    private void testUpdate() {
+        String sql = "UPDATE userinfo SET password=?,salary=? WHERE username = 'Jim'";
+        String[] parameters = { "xaut", "6500.00" };
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    private void testDelete() {
+        String sql = "DELETE FROM userinfo WHERE username = ?";
+        String[] parameters = { "xiaoqiang" };
+        SqlHelper.executeUpdate(sql, parameters);
+    }
+
+    private void testQuery() {
+        String sql = "SELECT * FROM userinfo";
+        try {
+            ResultSet rs = SqlHelper.executeQuery(sql, null);
+            while (rs.next()) {
+                System.out.println("userName:" + rs.getString("userName")
+                        + "\tpassword:" + rs.getString("password")
+                        + "\tgender:" + rs.getString("gender") + "\tsalary:"
+                        + rs.getDouble("salary"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            SqlHelper.close(SqlHelper.getRs(), SqlHelper.getPs(), SqlHelper
+                    .getConn());
+        }
+    }
+}
